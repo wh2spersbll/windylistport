@@ -1,0 +1,42 @@
+{
+  "name": "windylist-app",
+  "version": "1.0.0",
+  "description": "Windy List - Geometry Dash community level list",
+  "author": "Windy List <noreply@windylist.pl>",
+  "homepage": "https://windylist.pl",
+  "license": "UNLICENSED",
+  "main": "desktop/main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist:linux": "electron-builder --linux AppImage pacman tar.gz",
+    "dist:win": "electron-builder --win nsis portable",
+    "cap:sync": "cap sync"
+  },
+  "dependencies": {
+    "@capacitor/android": "^6.2.0",
+    "@capacitor/cli": "^6.2.0",
+    "@capacitor/core": "^6.2.0",
+    "@capacitor/ios": "^6.2.0"
+  },
+  "devDependencies": {
+    "electron": "^33.2.0",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "pl.windylist.app",
+    "productName": "Windy List",
+    "directories": { "output": "dist", "buildResources": "build" },
+    "files": ["desktop/**/*", "package.json"],
+    "linux": {
+      "category": "Game",
+      "icon": "build/icon.png",
+      "maintainer": "Windy List <noreply@windylist.pl>",
+      "target": ["AppImage", "pacman", "tar.gz"]
+    },
+    "win": {
+      "icon": "build/icon.png",
+      "target": ["nsis", "portable"]
+    },
+    "nsis": { "oneClick": false, "allowToChangeInstallationDirectory": true }
+  }
+}
