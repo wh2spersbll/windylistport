@@ -3,10 +3,21 @@
   "appName": "Windy List",
   "webDir": "www",
   "server": {
-    "url": "https://windylist.pl",
-    "cleartext": false,
-    "allowNavigation": ["windylist.pl", "*.windylist.pl", "www.google.com", "www.gstatic.com", "discord.com"]
+    "allowNavigation": [
+      "windylist.pl",
+      "*.windylist.pl",
+      "www.google.com",
+      "www.gstatic.com",
+      "*.google.com",
+      "discord.com"
+    ]
   },
-  "ios": { "contentInset": "always", "backgroundColor": "#121218" },
-  "android": { "backgroundColor": "#121218", "allowMixedContent": false }
+  "ios": {
+    "contentInset": "always",
+    "backgroundColor": "#121218"
+  },
+  "android": {
+    "backgroundColor": "#121218",
+    "allowMixedContent": false
+  }
 }
