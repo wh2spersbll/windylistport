@@ -8,8 +8,8 @@
   "main": "desktop/main.js",
   "scripts": {
     "start": "electron .",
-    "dist:linux": "electron-builder --linux AppImage pacman tar.gz",
-    "dist:win": "electron-builder --win nsis portable",
+    "dist:linux": "electron-builder --linux AppImage pacman tar.gz --publish never",
+    "dist:win": "electron-builder --win nsis portable --publish never",
     "cap:sync": "cap sync"
   },
   "dependencies": {
