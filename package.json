@@ -25,18 +25,35 @@
   "build": {
     "appId": "pl.windylist.app",
     "productName": "Windy List",
-    "directories": { "output": "dist", "buildResources": "build" },
-    "files": ["desktop/**/*", "package.json"],
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "desktop/**/*",
+      "www/**/*",
+      "package.json"
+    ],
     "linux": {
       "category": "Game",
       "icon": "build/icon.png",
       "maintainer": "Windy List <noreply@windylist.pl>",
-      "target": ["AppImage", "pacman", "tar.gz"]
+      "target": [
+        "AppImage",
+        "pacman",
+        "tar.gz"
+      ]
     },
     "win": {
       "icon": "build/icon.png",
-      "target": ["nsis", "portable"]
+      "target": [
+        "nsis",
+        "portable"
+      ]
     },
-    "nsis": { "oneClick": false, "allowToChangeInstallationDirectory": true }
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
   }
 }

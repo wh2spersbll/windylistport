@@ -1,19 +1,39 @@
-<!doctype html><html><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="theme-color" content="#0b0b0e">
 <title>Windy List</title>
-<style>html,body{margin:0;height:100%;background:#121218;color:#eee;font-family:system-ui,sans-serif}
-body{display:grid;place-items:center;text-align:center;padding:16px;box-sizing:border-box}img{width:96px;border-radius:20px}
-a,button{color:#4da3ff}button{background:#4da3ff;color:#000;border:0;border-radius:8px;padding:10px 22px;font-size:16px}
-#e{opacity:.7;font-size:13px;word-break:break-all}</style></head>
-<body><div><img src="icon.png" alt=""><h2>Windy List</h2><p id="s">Loading…</p><p id="e"></p>
-<p><a id="l" href="https://windylist.pl">Open site directly</a></p></div>
-<script>
-var SITE='https://windylist.pl';
-function go(){location.href=SITE;}
-var c=new AbortController();setTimeout(function(){c.abort();},10000);
-fetch(SITE,{mode:'no-cors',signal:c.signal}).then(go).catch(function(err){
-  document.getElementById('s').textContent="Can't reach the site from inside the app.";
-  document.getElementById('e').textContent=String(err);
-  document.getElementById('s').insertAdjacentHTML('afterend','<p><button onclick="location.reload()">Retry</button></p>');
-});
-</script></body></html>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<div id="app">
+  <header id="hero">
+    <h1>Windy List</h1>
+    <p>Geometry Dash Community Level List</p>
+  </header>
+
+  <main id="view"></main>
+</div>
+
+<div id="dock">
+  <div id="searchbar" class="glass">
+    <button id="searchbtn" type="button">Search</button>
+    <input id="searchin" type="search" placeholder="Search…" autocomplete="off" autocapitalize="off" hidden>
+  </div>
+  <nav id="tabbar" class="glass">
+    <button data-tab="list" class="on">List</button>
+    <button data-tab="stats">Stats</button>
+    <button data-tab="account">Account</button>
+  </nav>
+</div>
+
+<section id="sheet" hidden>
+  <div id="sheet-top"><button id="sheet-back" type="button">‹ Back</button></div>
+  <div id="sheet-body"></div>
+</section>
+
+<script src="app.js"></script>
+</body>
+</html>

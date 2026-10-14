@@ -1,24 +1,22 @@
-# Windy List apps
+# Windy List app
 
-Native shells around the live Windy List site (https://windylist.pl).
-The PHP + MySQL backend stays on your web host; these apps are clients.
-To change the address, edit `SITE_URL` in `desktop/main.js` and `server.url` in `capacitor.config.json`.
+A real app (not a website wrapper) for Android, iOS, Windows and Linux.
+The UI lives in `www/` (plain HTML/CSS/JS, no build step) and reads data from the Windy List API
+at https://windylist.pl/api. Account actions (sign in, register, submit a record) open the website.
 
-## Build everything (recommended)
-1. Push this folder to a GitHub repo.
-2. Actions tab -> "Build apps" -> Run workflow.
-3. Download artifacts:
-   - `desktop-ubuntu-latest`: `.AppImage`, `.pacman`, `.tar.gz` (Arch: `sudo pacman -U "Windy List-*.pacman"`, or `chmod +x *.AppImage && ./*.AppImage`)
-   - `desktop-windows-latest`: NSIS installer `.exe` and portable `.exe`
-   - `WindyList-apk`: `app-debug.apk` (enable "install unknown apps")
-   - `WindyList-ipa`: `WindyList-unsigned.ipa`
+## Required: update the API on your host (one file)
+The app needs each level's list type (Classic / Platformer / Challenge) and points.
+Upload `backend/api/index.php` to your host, replacing `api/index.php` (keep your `config.php` untouched).
+It only adds read-only fields: `list_type`, `legacy`, `points` on levels and `top1_points` on list information.
+Without it every level shows under Classic.
 
-## iOS notes
-The IPA is unsigned. Install it by signing with your Apple ID via Sideloadly or AltStore (7-day certs on a free account),
-or sign it with a paid Apple Developer account for TestFlight/App Store. Apple often rejects pure website wrappers
-(guideline 4.2), so expect to add native features before an App Store submission.
+## Build
+Actions tab -> "Build apps" -> Run workflow. Downloads:
+- Releases page: `Windy List Android (latest)` (.apk) and `Windy List iOS (latest)` (unsigned .ipa)
+- Run artifacts: `desktop-ubuntu-latest` (.AppImage, .pacman, .tar.gz) and `desktop-windows-latest` (.exe)
 
-## Local builds
-- Desktop: `npm install && npm start` (run), `npm run dist:linux` / `dist:win` (Windows installers are best built on Windows).
-- Android: `npm install && npx cap add android && npx cap sync android`, then build in Android Studio.
-- iOS: needs macOS + Xcode: `npx cap add ios && npx cap open ios`.
+## Local
+`npm install && npm start` runs the desktop app. Change the server address in the app's Account tab.
+
+## iOS
+The IPA is unsigned: sign it with Sideloadly / AltStore / KSign, or a paid Apple Developer account.
