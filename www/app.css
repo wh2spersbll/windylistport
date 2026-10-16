@@ -72,3 +72,18 @@ a{color:var(--accent);text-decoration:underline;text-underline-offset:2px}
 .rec b{font-variant-numeric:tabular-nums}
 h4{margin:22px 0 10px;font-size:13px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
 .field{width:100%;margin:6px 0 0;padding:12px 14px;border-radius:12px;border:1px solid var(--line);background:var(--card);color:var(--text);font-size:16px}
+
+/* clans */
+.ctag{display:inline-block;padding:0 6px;border-radius:6px;font-weight:800;font-size:.9em;margin-right:2px}
+.clan{display:flex;align-items:center;gap:12px;margin:0 16px 10px;padding:0;background:var(--card);border:1px solid var(--line);border-radius:16px;width:calc(100% - 32px);text-align:left;overflow:hidden}
+.cbanner{flex:none;width:92px;align-self:stretch;min-height:84px;background:linear-gradient(135deg,#2a2440,#171726) center/cover;display:grid;place-items:center}
+.cicon{width:46px;height:46px;border-radius:12px;background:#12121a;display:grid;place-items:center;overflow:hidden;font-size:22px;box-shadow:0 0 0 2px rgba(255,255,255,.12)}
+.cicon img,.cavatar{width:100%;height:100%;object-fit:cover}
+.cinfo{flex:1;min-width:0;padding:10px 0;display:flex;flex-direction:column;gap:2px}
+.cinfo strong{font-size:16px}.cinfo small{color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.crank{font-size:11px;font-weight:800;color:var(--muted)}
+.cpts{padding:10px 16px 10px 0;text-align:right}.cpts b{display:block;font-size:17px;color:#cfd3ff;font-variant-numeric:tabular-nums}.cpts small{color:var(--muted);font-size:11px}
+.chead{display:flex;gap:14px;align-items:center;margin-top:14px}
+.chead h2{margin:0}.muted{color:var(--muted)}
+.cavatar{flex:none;width:64px;height:64px;border-radius:16px;background:#12121a;display:grid;place-items:center;font-size:30px;overflow:hidden}
+.big:empty{background:linear-gradient(135deg,#2a2440,#171726)}

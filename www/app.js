@@ -12,7 +12,7 @@ function SITE() { return (store('wl_site') || DEFAULT_SITE).replace(/\/+$/, '');
 
 var S = {
   tab: 'list', type: store('wl_type') || 'classic', q: '',
-  demons: null, info: null, players: null, error: null, loading: false
+  demons: null, info: null, players: null, clans: null, statsView: 'players', error: null, loading: false
 };
 
 // ---------- helpers ----------
@@ -99,6 +99,15 @@ function refresh(force) {
   }).then(function () { S.loading = false; render(); });
 }
 
+function loadClans() {
+  return api('/v1/clans/');
+}
+function mediaUrl(p) { return p ? SITE() + '/' + String(p).replace(/^\/+/, '') : ''; }
+function colorOf(c) { return /^#[0-9a-f]{6}$/i.test(c || '') ? c : '#8b5cf6'; }
+function clanTag(c) {
+  return c && c.name ? '<span class="ctag" style="color:' + colorOf(c.tag_color) + ';background:' + colorOf(c.tag_color) + '22">[' + esc(c.name) + ']</span> ' : '';
+}
+
 // ---------- views ----------
 function viewList() {
   var h = '<div class="seg" id="types">';
@@ -138,19 +147,39 @@ function viewList() {
 }
 
 function viewStats() {
-  if (!S.players) {
-    if (S.error) return errorBox();
-    return '<div class="spin"></div>';
-  }
+  var h = '<div class="seg" id="statsseg"><button data-sv="players"' + (S.statsView === 'players' ? ' class="on"' : '') + '>Players</button>' +
+    '<button data-sv="clans"' + (S.statsView === 'clans' ? ' class="on"' : '') + '>Clans</button></div>';
   var q = S.q.trim().toLowerCase();
-  var h = '<div class="sect">Player ranking</div>';
-  S.players.filter(function (p) { return !q || String(p.name).toLowerCase().indexOf(q) >= 0; }).forEach(function (p) {
+
+  if (S.statsView === 'clans') {
+    if (!S.clans) return h + (S.error ? errorBox() : '<div class="spin"></div>');
+    var cl = S.clans.filter(function (c) { return !q || String(c.name).toLowerCase().indexOf(q) >= 0; });
+    if (!cl.length) return h + '<div class="note"><b>No clans yet</b>' + (q ? 'Nothing matches your search.' : 'Clans will show up here once players create them.') + '</div>';
+    h += '<div class="sect">Clan leaderboard</div>';
+    cl.forEach(function (c) {
+      var ban = mediaUrl(c.banner), ic = mediaUrl(c.icon);
+      h += '<button class="clan" data-clan="' + c.id + '">' +
+        '<div class="cbanner"' + (ban ? ' style="background-image:linear-gradient(90deg,rgba(12,14,24,.2),rgba(12,14,24,.2)),url(\'' + esc(ban) + '\')"' : '') + '>' +
+        '<span class="cicon">' + (ic ? '<img alt="" src="' + esc(ic) + '" onerror="this.remove()">' : '🛡') + '</span></div>' +
+        '<div class="cinfo"><span class="crank">#' + c.rank + '</span><strong style="color:' + colorOf(c.tag_color) + '">' + esc(c.name) + '</strong>' +
+        '<small>' + esc(c.description || 'WindyList clan') + '</small></div>' +
+        '<div class="cpts"><b>' + Number(c.points).toFixed(2) + '</b><small>' + c.members + ' member' + (c.members === 1 ? '' : 's') + '</small></div></button>';
+    });
+    return h;
+  }
+
+  if (!S.players) return h + (S.error ? errorBox() : '<div class="spin"></div>');
+  h += '<div class="sect">Player ranking</div>';
+  var rows = S.players.filter(function (p) {
+    return !q || String(p.name).toLowerCase().indexOf(q) >= 0 || (p.clan && String(p.clan.name).toLowerCase().indexOf(q) >= 0);
+  });
+  rows.forEach(function (p) {
     var c = p.nationality && p.nationality.iso_country_code;
     h += '<button class="row" data-player="' + p.id + '"><span class="rank">' + (p.rank != null ? p.rank : '') + '</span>' +
       (c ? '<img class="flag" alt="" src="' + esc(SITE() + '/assets/flags/' + String(c).toLowerCase() + '.svg') + '" onerror="this.style.visibility=\'hidden\'">' : '') +
-      '<span class="name">' + esc(p.name) + '</span><span class="score">' + Number(p.score).toFixed(2) + '</span></button>';
+      '<span class="name">' + clanTag(p.clan) + esc(p.name) + '</span><span class="score">' + Number(p.score).toFixed(2) + '</span></button>';
   });
-  return h || '<div class="note"><b>No players</b></div>';
+  return h + (rows.length ? '' : '<div class="note"><b>No players</b></div>');
 }
 
 function viewAccount() {
@@ -228,10 +257,11 @@ function showPlayer(id) {
   api('/v1/players/' + id + '/').then(function (p) {
     var names = function (a) { return (a || []).map(function (x) { return esc(x && (x.name || (x.demon && x.demon.name)) || ''); }).filter(Boolean).join(', ') || '—'; };
     var recs = p.records || [];
-    var h = '<h2>' + esc(p.name) + '</h2><div class="kv">' +
+    var h = '<h2>' + clanTag(p.clan) + esc(p.name) + '</h2><div class="kv">' +
       '<span>Rank</span><span>' + (p.rank != null ? '#' + p.rank : '—') + '</span>' +
       '<span>Score</span><span>' + Number(p.score).toFixed(2) + '</span>' +
       '<span>Nation</span><span>' + esc(p.nationality && p.nationality.nation || '—') + '</span>' +
+      '<span>Clan</span><span>' + (p.clan ? '<a href="#" data-clanlink="' + p.clan.id + '" style="color:' + colorOf(p.clan.tag_color) + '">' + esc(p.clan.name) + '</a>' : '—') + '</span>' +
       '<span>Verified</span><span>' + names(p.verified) + '</span>' +
       '<span>Published</span><span>' + names(p.published) + '</span>' +
       '<span>Created</span><span>' + names(p.created) + '</span></div><h4>Records (' + recs.length + ')</h4>';
@@ -242,16 +272,36 @@ function showPlayer(id) {
   }).catch(function (e) { openSheet('<div class="note"><b>Couldn\'t load player</b>' + esc(e.message) + '</div>'); });
 }
 
+function showClan(id) {
+  openSheet('<div class="spin"></div>');
+  api('/v1/clans/' + id + '/').then(function (c) {
+    var ban = mediaUrl(c.banner), ic = mediaUrl(c.icon), col = colorOf(c.tag_color);
+    var h = '<div class="big"' + (ban ? ' style="background:url(\'' + esc(ban) + '\') center/cover"' : '') + '></div>' +
+      '<div class="chead">' + (ic ? '<img class="cavatar" alt="" src="' + esc(ic) + '" onerror="this.remove()">' : '<span class="cavatar">🛡</span>') +
+      '<div><h2 style="color:' + col + '">' + esc(c.name) + '</h2><div class="muted">' + esc(c.description || 'WindyList clan') + '</div></div></div>' +
+      '<div class="kv"><span>Rank</span><span>#' + c.rank + '</span><span>Combined points</span><span>' + Number(c.points).toFixed(2) + '</span>' +
+      '<span>Members</span><span>' + c.members + '</span></div><h4>Members</h4>';
+    (c.members_list || []).forEach(function (m) {
+      h += '<div class="rec"><span>' + clanTag({ name: c.name, tag_color: c.tag_color }) + esc(m.name) +
+        (m.role === 'leader' ? ' <span class="chip">Leader</span>' : '') + '</span><b>' + Number(m.points).toFixed(2) + '</b></div>';
+    });
+    openSheet(h);
+  }).catch(function (e) { openSheet('<div class="note"><b>Couldn\'t load clan</b>' + esc(e.message) + '</div>'); });
+}
+
 // ---------- events ----------
 document.addEventListener('click', function (e) {
   var t = e.target.closest('button,a'); if (!t) return;
   if (t.hasAttribute('data-type')) { S.type = t.getAttribute('data-type'); store('wl_type', S.type); render(); return; }
   if (t.hasAttribute('data-id')) { showDemon(t.getAttribute('data-id')); return; }
   if (t.hasAttribute('data-player')) { showPlayer(t.getAttribute('data-player')); return; }
-  if (t.id === 'retry') { S.tab === 'stats' ? loadStats() : refresh(); return; }
+  if (t.hasAttribute('data-clan')) { showClan(t.getAttribute('data-clan')); return; }
+  if (t.hasAttribute('data-clanlink')) { e.preventDefault(); showClan(t.getAttribute('data-clanlink')); return; }
+  if (t.hasAttribute('data-sv')) { S.statsView = t.getAttribute('data-sv'); S.error = null; if (S.statsView === 'clans' && !S.clans) loadClansView(); render(); return; }
+  if (t.id === 'retry') { S.tab === 'stats' ? (S.statsView === 'clans' ? loadClansView() : loadStats()) : refresh(); return; }
   if (t.id === 'savesite') {
     var v = ($('siteurl').value || '').trim();
-    if (/^https:\/\//i.test(v)) { store('wl_site', v); S.demons = S.players = null; S.tab = 'list'; refresh(); }
+    if (/^https:\/\//i.test(v)) { store('wl_site', v); S.demons = S.players = S.clans = null; S.tab = 'list'; refresh(); }
     else alert('Address must start with https://');
     return;
   }
@@ -267,6 +317,10 @@ document.querySelectorAll('#tabbar button').forEach(function (b) {
 function loadStats() {
   S.error = null; render();
   loadPlayers().then(function (p) { S.players = p; }).catch(function (e) { S.error = e.message; }).then(render);
+}
+function loadClansView() {
+  S.error = null; render();
+  loadClans().then(function (c) { S.clans = c; }).catch(function (e) { S.error = e.message; }).then(render);
 }
 function collapseSearch() {
   $('searchin').hidden = true; $('searchbtn').hidden = false;

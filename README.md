@@ -7,7 +7,9 @@ at https://windylist.pl/api. Account actions (sign in, register, submit a record
 ## Required: update the API on your host (one file)
 The app needs each level's list type (Classic / Platformer / Challenge) and points.
 Upload `backend/api/index.php` to your host, replacing `api/index.php` (keep your `config.php` untouched).
-It only adds read-only fields: `list_type`, `legacy`, `points` on levels and `top1_points` on list information.
+It only adds read-only fields: `list_type`, `legacy`, `points` on levels, `top1_points` on list information,
+`clan` on players, and the clan endpoints `/api/v1/clans/` and `/api/v1/clans/{id}/`.
+Clans also need the Clan Profiles site update (`install-clans.php`) to have been installed; without it the Clans tab is just empty.
 Without it every level shows under Classic.
 
 ## Build

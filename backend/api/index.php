@@ -118,6 +118,8 @@ function api_dispatch(): never
                 '/api/v1/players/ranking/',
                 '/api/v1/list_information/',
                 '/api/v1/nationalities/ranking/',
+                '/api/v1/clans/',
+                '/api/v1/clans/{id}/',
             ],
         ]);
     }
@@ -178,6 +180,16 @@ function api_dispatch(): never
 
         if (count($segments) === 3 && preg_match('/^\d+$/', $segments[2]) === 1) {
             api_send(api_full_player($pdo, (int) $segments[2]));
+        }
+    }
+
+    if (count($segments) >= 2 && $segments[0] === 'v1' && $segments[1] === 'clans') {
+        if (count($segments) === 2) {
+            api_send(api_clan_list($pdo));
+        }
+
+        if (count($segments) === 3 && preg_match('/^\d+$/', $segments[2]) === 1) {
+            api_send(api_clan_detail($pdo, (int) $segments[2]));
         }
     }
 
@@ -1253,6 +1265,7 @@ function api_public_player(array $player, bool $full = false): array
         'score' => (float) $player['score'],
         'rank' => $player['rank'] !== null ? (int) $player['rank'] : null,
         'nationality' => $player['nationality'] ?? null,
+        'clan' => api_clan_for_user((int) $player['id']),
     ];
 
     if ($full) {
@@ -1263,6 +1276,127 @@ function api_public_player(array $player, bool $full = false): array
     }
 
     return $public;
+}
+
+// ---------------------------------------------------------------------------
+// Clans (read-only) - added for the Windy List app. Safe before install-clans.php
+// has been run: every function returns empty data when the tables don't exist yet.
+// ---------------------------------------------------------------------------
+function api_clans_available(PDO $pdo): bool
+{
+    static $ok = null;
+    if ($ok === null) {
+        $ok = api_table_exists($pdo, 'clans') && api_table_exists($pdo, 'clan_members');
+    }
+
+    return $ok;
+}
+
+function api_clan_color(mixed $value): string
+{
+    $color = strtolower(trim((string) $value));
+    return preg_match('/^#[0-9a-f]{6}$/', $color) === 1 ? $color : '#8b5cf6';
+}
+
+/** Map of user id => compact clan info (used for the clan tag next to player names). */
+function api_clan_user_map(): array
+{
+    static $map = null;
+    if ($map !== null) {
+        return $map;
+    }
+
+    $map = [];
+    $pdo = api_db();
+    if (!api_clans_available($pdo)) {
+        return $map;
+    }
+
+    $rows = $pdo->query(
+        'SELECT cm.user_id, c.id, c.name, c.tag_color
+         FROM clan_members cm INNER JOIN clans c ON c.id = cm.clan_id'
+    )->fetchAll();
+
+    foreach ($rows as $row) {
+        $map[(int) $row['user_id']] = [
+            'id' => (int) $row['id'],
+            'name' => (string) $row['name'],
+            'tag_color' => api_clan_color($row['tag_color']),
+        ];
+    }
+
+    return $map;
+}
+
+function api_clan_for_user(int $userId): ?array
+{
+    return api_clan_user_map()[$userId] ?? null;
+}
+
+function api_clan_list(PDO $pdo): array
+{
+    if (!api_clans_available($pdo)) {
+        return [];
+    }
+
+    $rows = $pdo->query(
+        "SELECT c.id, c.name, c.description, c.icon_path, c.banner_path, c.tag_color,
+                COUNT(cm.user_id) AS members, COALESCE(SUM(u.points + u.bonus_points), 0) AS points
+         FROM clans c
+         LEFT JOIN clan_members cm ON cm.clan_id = c.id
+         LEFT JOIN users u ON u.id = cm.user_id
+         GROUP BY c.id, c.name, c.description, c.icon_path, c.banner_path, c.tag_color
+         ORDER BY points DESC, c.name ASC"
+    )->fetchAll();
+
+    $out = [];
+    foreach ($rows as $index => $row) {
+        $out[] = api_format_clan($row) + ['rank' => $index + 1];
+    }
+
+    return $out;
+}
+
+function api_format_clan(array $row): array
+{
+    return [
+        'id' => (int) $row['id'],
+        'name' => (string) $row['name'],
+        'description' => (string) ($row['description'] ?? ''),
+        'icon' => !empty($row['icon_path']) ? (string) $row['icon_path'] : null,
+        'banner' => !empty($row['banner_path']) ? (string) $row['banner_path'] : null,
+        'tag_color' => api_clan_color($row['tag_color'] ?? ''),
+        'members' => (int) ($row['members'] ?? 0),
+        'points' => round((float) ($row['points'] ?? 0), 2),
+    ];
+}
+
+function api_clan_detail(PDO $pdo, int $clanId): array
+{
+    foreach (api_clan_list($pdo) as $clan) {
+        if ((int) $clan['id'] !== $clanId) {
+            continue;
+        }
+
+        $stmt = $pdo->prepare(
+            "SELECT u.id, u.username, u.display_name, u.points, u.bonus_points, cm.role
+             FROM clan_members cm INNER JOIN users u ON u.id = cm.user_id
+             WHERE cm.clan_id = :id
+             ORDER BY (cm.role = 'leader') DESC, (u.points + u.bonus_points) DESC, u.username ASC"
+        );
+        $stmt->execute([':id' => $clanId]);
+
+        $clan['members_list'] = array_map(static fn(array $m): array => [
+            'id' => (int) $m['id'],
+            'name' => (string) (($m['display_name'] ?? '') !== '' ? $m['display_name'] : $m['username']),
+            'role' => (string) $m['role'],
+            'points' => round((float) $m['points'] + (float) $m['bonus_points'], 2),
+        ], $stmt->fetchAll());
+
+        return $clan;
+    }
+
+    api_error(404, 'Clan not found.');
 }
 
 function api_nationality_ranking(PDO $pdo): array
