@@ -8,6 +8,7 @@ var TYPES = [['classic', 'Classic'], ['platformer', 'Platformer'], ['challenge',
 function store(k, v) {
   try { if (v === undefined) return localStorage.getItem(k); localStorage.setItem(k, v); } catch (e) { return null; }
 }
+function siteBase() { var b = SITE(); return store('wl_http') === '1' ? b.replace(/^https:/i, 'http:') : b; }
 function SITE() { return (store('wl_site') || DEFAULT_SITE).replace(/\/+$/, ''); }
 
 var S = {
@@ -57,12 +58,11 @@ function getText(url) {
   });
 }
 
-function api(path) {
-  var url = SITE() + '/api' + path;
-  return getText(url).catch(function (e) {
-    var m = String((e && e.message) || e);
-    throw new Error("Couldn't reach " + SITE().replace(/^https?:\/\//, '') + ' (' + m + '). Check your internet connection and the server address in Account.');
-  }).then(function (o) {
+var TLS_RE = /tls|ssl|certificate|secure connection|handshake|trust|not secure/i;
+function plainMsg(e) { return String((e && (e.message || e.errorMessage)) || e); }
+
+function fetchJson(url) {
+  return getText(url).then(function (o) {
     var j;
     try { j = JSON.parse(o.text); } catch (e) {
       throw new Error('The server answered with a web page instead of data (HTTP ' + o.status + '): ' +
@@ -70,6 +70,25 @@ function api(path) {
     }
     if (o.status >= 400) throw new Error((j && (j.message || j.error)) || ('HTTP ' + o.status));
     return j;
+  });
+}
+
+function api(path) {
+  var base = SITE();
+  var host = base.replace(/^https?:\/\//, '');
+  var preferHttp = store('wl_http') === '1' && /^https:/i.test(base);
+  var first = (preferHttp ? 'http://' : base.replace(/^(https?:\/\/).*/i, '$1')) + host;
+  return fetchJson(first + '/api' + path).catch(function (e1) {
+    var m1 = plainMsg(e1);
+    // Secure connection itself failed: try the plain-HTTP address once (the data is public and read-only).
+    if (/^https:/i.test(first) && TLS_RE.test(m1)) {
+      return fetchJson('http://' + host + '/api' + path).then(function (j) { store('wl_http', '1'); return j; })
+        .catch(function (e2) {
+          throw new Error("Couldn't reach " + host + '. HTTPS: ' + m1 + ' | HTTP: ' + plainMsg(e2));
+        });
+    }
+    if (m1.indexOf('web page') >= 0 || m1.indexOf('HTTP ') === 0) throw e1;
+    throw new Error("Couldn't reach " + host + ' (' + m1 + '). Check your internet connection and the server address in Account.');
   });
 }
 
@@ -138,7 +157,7 @@ function refresh(force) {
 function loadClans() {
   return api('/v1/clans/');
 }
-function mediaUrl(p) { return p ? SITE() + '/' + String(p).replace(/^\/+/, '') : ''; }
+function mediaUrl(p) { return p ? siteBase() + '/' + String(p).replace(/^\/+/, '') : ''; }
 function colorOf(c) { return /^#[0-9a-f]{6}$/i.test(c || '') ? c : '#8b5cf6'; }
 function clanTag(c) {
   return c && c.name ? '<span class="ctag" style="color:' + colorOf(c.tag_color) + ';background:' + colorOf(c.tag_color) + '22">[' + esc(c.name) + ']</span> ' : '';
@@ -223,7 +242,7 @@ function viewStats() {
   rows.forEach(function (p) {
     var c = p.nationality && p.nationality.iso_country_code;
     h += '<button class="row" data-player="' + p.id + '"><span class="rank">' + (p.rank != null ? p.rank : '') + '</span>' +
-      (c ? '<img class="flag" alt="" src="' + esc(SITE() + '/assets/flags/' + String(c).toLowerCase() + '.svg') + '" onerror="this.style.visibility=\'hidden\'">' : '') +
+      (c ? '<img class="flag" alt="" src="' + esc(siteBase() + '/assets/flags/' + String(c).toLowerCase() + '.svg') + '" onerror="this.style.visibility=\'hidden\'">' : '') +
       '<span class="name">' + clanTag(p.clan) + esc(p.name) + '</span><span class="score">' + Number(p.score).toFixed(2) + '</span></button>';
   });
   return h + (rows.length ? '' : '<div class="note"><b>No players</b></div>');
@@ -348,8 +367,8 @@ document.addEventListener('click', function (e) {
   if (t.id === 'retry') { S.tab === 'stats' ? (S.statsView === 'clans' ? loadClansView() : loadStats()) : refresh(); return; }
   if (t.id === 'savesite') {
     var v = ($('siteurl').value || '').trim();
-    if (/^https:\/\//i.test(v)) { store('wl_site', v); S.demons = S.players = S.clans = null; S.tab = 'list'; refresh(); }
-    else alert('Address must start with https://');
+    if (/^https?:\/\//i.test(v)) { store('wl_site', v); store('wl_http', ''); S.demons = S.players = S.clans = null; S.tab = 'list'; refresh(); }
+    else alert('Address must start with https:// or http://');
     return;
   }
 });

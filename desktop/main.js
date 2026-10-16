@@ -6,9 +6,9 @@ const CHROME_VER = process.versions.chrome;
 app.userAgentFallback = `Mozilla/5.0 (${process.platform === 'win32' ? 'Windows NT 10.0; Win64; x64' : 'X11; Linux x86_64'}) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${CHROME_VER} Safari/537.36`;
 app.commandLine.appendSwitch('ozone-platform-hint', 'auto');
 
-// HTTP for the UI runs here (no browser CORS limits). HTTPS only.
+// HTTP for the UI runs here (no browser CORS limits).
 ipcMain.handle('wl:http', async (_e, url, headers) => {
-  if (typeof url !== 'string' || !/^https:\/\//i.test(url)) throw new Error('Only https addresses are allowed');
+  if (typeof url !== 'string' || !/^https?:\/\//i.test(url)) throw new Error('Only web addresses are allowed');
   const clean = {};
   for (const [k, v] of Object.entries(headers || {})) if (typeof v === 'string') clean[k] = v;
   const r = await net.fetch(url, { headers: clean, redirect: 'follow' });
