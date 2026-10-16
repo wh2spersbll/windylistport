@@ -24,17 +24,53 @@ function esc(x) {
 function safeUrl(u) { return /^https?:\/\//i.test(u || '') ? u : ''; }
 function $(id) { return document.getElementById(id); }
 
+// ---- network layer ---------------------------------------------------------
+// Phones use the native HTTP stack (no browser CORS limits), the desktop app uses
+// the main process, and a plain browser falls back to fetch().
+function rawGet(url, headers) {
+  var cap = window.Capacitor;
+  var native = cap && cap.isNativePlatform && cap.isNativePlatform() && cap.Plugins && cap.Plugins.CapacitorHttp;
+  if (native) {
+    return cap.Plugins.CapacitorHttp.get({ url: url, headers: headers, responseType: 'text', connectTimeout: 20000, readTimeout: 20000 })
+      .then(function (r) {
+        var d = r.data;
+        return { status: r.status, text: typeof d === 'string' ? d : JSON.stringify(d) };
+      });
+  }
+  if (window.wlHttp) return window.wlHttp(url, headers);
+  var h = {}; Object.keys(headers).forEach(function (k) { if (k.toLowerCase() !== 'cookie') h[k] = headers[k]; });
+  return fetch(url, { headers: h }).then(function (r) { return r.text().then(function (t) { return { status: r.status, text: t }; }); });
+}
+
+function getText(url) {
+  var cookie = store('wl_cookie') || '';
+  var headers = { Accept: 'application/json' };
+  if (cookie) headers.Cookie = cookie;
+  return rawGet(url, headers).then(function (res) {
+    var ch = window.WLChallenge && window.WLChallenge.solve(res.text);
+    if (!ch) return res;
+    // The host asked us to prove we are a browser: answer its cookie test and retry once.
+    cookie = ch.name + '=' + ch.value;
+    store('wl_cookie', cookie);
+    headers.Cookie = cookie;
+    return rawGet(url + (url.indexOf('?') >= 0 ? '&' : '?') + 'i=1', headers);
+  });
+}
+
 function api(path) {
-  return fetch(SITE() + '/api' + path, { headers: { Accept: 'application/json' } })
-    .then(function (r) { return r.text().then(function (t) { return { r: r, t: t }; }); })
-    .then(function (o) {
-      var j;
-      try { j = JSON.parse(o.t); } catch (e) {
-        throw new Error('The server did not answer with data (got a web page instead). It may be showing a bot-check page.');
-      }
-      if (!o.r.ok) throw new Error((j && (j.message || j.error)) || ('HTTP ' + o.r.status));
-      return j;
-    });
+  var url = SITE() + '/api' + path;
+  return getText(url).catch(function (e) {
+    var m = String((e && e.message) || e);
+    throw new Error("Couldn't reach " + SITE().replace(/^https?:\/\//, '') + ' (' + m + '). Check your internet connection and the server address in Account.');
+  }).then(function (o) {
+    var j;
+    try { j = JSON.parse(o.text); } catch (e) {
+      throw new Error('The server answered with a web page instead of data (HTTP ' + o.status + '): ' +
+        String(o.text || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 140));
+    }
+    if (o.status >= 400) throw new Error((j && (j.message || j.error)) || ('HTTP ' + o.status));
+    return j;
+  });
 }
 
 // Same scoring formula as the website (used when the API doesn't send points yet).

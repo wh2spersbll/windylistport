@@ -1,10 +1,19 @@
 // Desktop shell (Linux + Windows). Runs the bundled Windy List app UI (www/) which reads data from the site's API.
-const { app, BrowserWindow, shell, Menu } = require('electron');
+const { app, BrowserWindow, shell, Menu, ipcMain, net } = require('electron');
 const path = require('path');
 
 const CHROME_VER = process.versions.chrome;
 app.userAgentFallback = `Mozilla/5.0 (${process.platform === 'win32' ? 'Windows NT 10.0; Win64; x64' : 'X11; Linux x86_64'}) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${CHROME_VER} Safari/537.36`;
 app.commandLine.appendSwitch('ozone-platform-hint', 'auto');
+
+// HTTP for the UI runs here (no browser CORS limits). HTTPS only.
+ipcMain.handle('wl:http', async (_e, url, headers) => {
+  if (typeof url !== 'string' || !/^https:\/\//i.test(url)) throw new Error('Only https addresses are allowed');
+  const clean = {};
+  for (const [k, v] of Object.entries(headers || {})) if (typeof v === 'string') clean[k] = v;
+  const r = await net.fetch(url, { headers: clean, redirect: 'follow' });
+  return { status: r.status, text: await r.text() };
+});
 
 function createWindow() {
   const win = new BrowserWindow({
@@ -12,7 +21,7 @@ function createWindow() {
     backgroundColor: '#000000',
     title: 'Windy List',
     icon: path.join(__dirname, 'icon.png'),
-    webPreferences: { contextIsolation: true, sandbox: true, nodeIntegration: false },
+    webPreferences: { contextIsolation: true, sandbox: true, nodeIntegration: false, preload: path.join(__dirname, 'preload.js') },
   });
   Menu.setApplicationMenu(null);
   win.loadFile(path.join(__dirname, '..', 'www', 'index.html'));
