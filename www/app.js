@@ -128,8 +128,19 @@ function viewList() {
         (d.verifier && String(d.verifier.name).toLowerCase().indexOf(q) >= 0));
   }).sort(function (a, b) { return a.position - b.position; });
 
+  var counts = { classic: 0, platformer: 0, challenge: 0 };
+  S.demons.forEach(function (d) { var k = d.list_type || 'classic'; counts[k] = (counts[k] || 0) + 1; });
+  var summary = 'Loaded ' + S.demons.length + ' levels from ' + SITE().replace(/^https?:\/\//, '') +
+    ' (Classic ' + counts.classic + ', Platformer ' + counts.platformer + ', Challenge ' + counts.challenge + ')';
+
   if (S.error) h += '<div class="note"><b>Showing saved data</b>' + esc(S.error) + '</div>';
-  if (!items.length) return h + '<div class="note"><b>No levels</b>Nothing here' + (q ? ' matches your search.' : ' yet.') + '</div>';
+  if (!items.length && !q && S.demons.length) {
+    // The chosen tab is empty but other tabs have levels: jump to one that does.
+    var other = TYPES.filter(function (t) { return counts[t[0]] > 0; })[0];
+    if (other && other[0] !== S.type) { S.type = other[0]; return viewList(); }
+  }
+  if (!items.length) return h + '<div class="note"><b>No levels</b>' + (S.demons.length ? 'Nothing here' + (q ? ' matches your search.' : ' yet.') : 'The server returned no listed levels.') +
+    '<br><small>' + esc(summary) + '</small></div>';
 
   var main = S.info && S.info.list_size || 75, ext = S.info && S.info.extended_list_size || 150;
   var last = '';
@@ -143,7 +154,7 @@ function viewList() {
       '<p>published by <u>' + esc(d.publisher && d.publisher.name) + '</u>, verified by <u>' + esc(d.verifier && d.verifier.name) + '</u></p>' +
       '<p class="pts">' + p[0] + ' (' + d.requirement + '%) — ' + p[1] + ' (100%) points</p></div></button>';
   });
-  return h;
+  return h + '<div class="note"><small>' + esc(summary) + '</small></div>';
 }
 
 function viewStats() {
